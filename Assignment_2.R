@@ -1,6 +1,28 @@
 data(iris)
 head(iris)
 
+sp_ids <- unique(iris$Species)
+
+output <- matrix(0, nrow=length(sp_ids), ncol=ncol(iris)-1)
+rownames(output) <- sp_ids
+colnames(output) <- names(iris[ , -ncol(iris)])
+
+for(i in seq_along(sp_ids)) {
+  iris_sp <- subset(iris, subset=Species == sp_ids[i], select=-Species)
+  for(j in 1:(ncol(iris_sp))) {
+    x <- 0
+    y <- 0
+    if (nrow(iris_sp) > 0) {
+      for(k in 1:nrow(iris_sp)) {
+        x <- x + iris_sp[k, j]
+        y <- y + 1
+      }
+      output[i, j] <- x / y 
+    }
+  }
+}
+output
+
 #' 1. The loops created a data set of the average of each row and column.
 
 #' 2. Pseudo-code:
@@ -94,10 +116,8 @@ trait_avg
 #' Sum of a Sequence
 
 #' 5. 
-x_vec <- c(1:10)
-for (i in x_vec){
-  y_vec <- (cumsum(x_vec))
-}
+x_vec <- 1:10
+y_vec <- (cumsum(x_vec))
 y_vec
 
 
@@ -109,8 +129,12 @@ y_vec
 
 
 #' 7.
-
-
+x_vec <- 1:1
+for (i in x_vec){
+  y_vec[i] <- (cumsum(x_vec))
+}
+y_vec
+### I can't seem to figure this one out since I didn't use a for loop in the previous questions.  
 
 #' 8. Fibonacci numbers
 Fibonacci <- numeric(15)
