@@ -129,7 +129,7 @@ y_vec
 
 
 #' 7.
-x_vec <- 1:1
+x_vec <- 1:10
 for (i in x_vec){
   y_vec[i] <- (cumsum(x_vec))
 }
