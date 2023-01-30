@@ -129,12 +129,17 @@ y_vec
 
 
 #' 7.
-x_vec <- 1:10
-for (i in x_vec){
-  y_vec[i] <- (cumsum(x_vec))
-}
+
+func1 <- function(x) {
+  x_vec <- c(1:length(x))
+y_vec <- cumsum(x_vec)
+y_vec <- ifelse(y_vec > 10, NA, y_vec)
 y_vec
-### I can't seem to figure this one out since I didn't use a for loop in the previous questions.  
+}
+
+func1(x_vec)
+
+### I can't seem to figure this one out since I didn't use a for loop in the previous questions..   
 
 #' 8. Fibonacci numbers
 Fibonacci <- numeric(15)
