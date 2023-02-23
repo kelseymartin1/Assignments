@@ -1,0 +1,73 @@
+---
+title: "Multivariate Assignment"
+output: html_document
+date: "2023-02-19"
+---
+
+```{r}
+library(vegan)
+data(dune)
+data(dune.env)
+?dune
+```
+
+# 1. Conduct an indirect ordination on the dune plant community. Specifically, visually examine a NMDS plot using the bray-curtis distance metric. # Below is some code to help you develop a potential plot that emphasizes the role of the environmental variable “Moisture”. Describe how you interpret the graphic. What is the goal of creating such a plot? Does this analysis suggest any interesting findings with respect to the dune vegetation?
+```{r}
+
+# NMDS
+
+dune_mds <- metaMDS(dune)
+plot(dune_mds, type='n')
+ text(dune_mds, 'sp', cex=.5)
+ # generate vector of colors 
+ color_vect = rev(terrain.colors(6))[-1]
+ points(dune_mds, 'sites', pch=19, 
+        col=color_vect[dune.env$Moisture])
+ legend('topright', paste("Moisture =", 1:5, sep=''), 
+        col=color_vect, pch=19)
+ 
+ 
+ # It appears that there is a clear distinction between higher moisture levels and lower moisture levels. It is clear that certain species are observed more in areas with higher miosture levels (Callcusp, Eleopalu), while others are observed more often in low moisture (Trifprat, Rumeacet). This graphs helps us to visualize any patterns between species observations and moisture levels.
+ 
+```
+# Carry out a direct ordination using CCA in order to test any potential hypotheses that you developed after examining the MDS plot. Specifically, carry out a test of the entire model (i.e., including all constrained axes) and also carry out tests at the scale of individual explanatory variables you included in your model if you included more than one variable. Plot your results.
+```{r}
+# CCA
+cca_dune <- cca(dune ~ . , data = dune.env)
+cca_dune
+plot(cca_dune, type='n', scaling=1)
+orditorp(cca_dune, display='sp', cex=0.5, scaling=1, col='blue')
+text(cca_dune, display='bp', col='red')
+
+# RDAs
+rda_dune <- rda(dune ~ Moisture, data = dune.env)
+rda_dune
+RsquareAdj(rda_dune)
+plot(rda_dune)
+
+rda_dune2 <- rda(dune ~ Moisture + Management, data = dune.env)
+rda_dune2
+plot(rda_dune2)
+
+rda_dune3 <- rda(dune ~ Management, data = dune.env)
+rda_dune3
+plot(rda_dune3)
+
+# I'm honestly very confused by the graphs. I'm not sure what "Moisture.L", "Moisture.Q", etc. means. I don't see that in the dataset?
+```
+# 3. Do your two analyses agree with one another or complement one another or do these two analyses seem to be suggesting different take home messages? Which analysis do you find to be more useful?
+
+```{r}
+# It looks like the two analyses do not exactly agree with one another. The indirect ordination analysis makes it look like there is a correlation between vegetation of specific species and moisture level. However the direct ordination analyses show that there is no clear distinction between species in regards to moisture level.
+
+# The CCA appears to tell us that there is a correlation between management and vegetaions, moreso than moisture and vegetation. The first axis in this analysis explains 46%, which is decently high, so it might be able to tell us if moisture or management has a more significant effect.
+
+# The RDA with just moisture shows all species clustered in the center, rather than certain species being pulled in different directions based on moisture level. The first axis explains 19% of variance, and the second explains about 5%. Overall this does not tell us a lot.
+
+# The RDA with both moisture and management shows some species being pulled toward "management SF" and "moisture 4", so it's difficult to say exactly which of these is having the effect.In this analysis, the first axis explains about 21% of the variance. Additionally, the species are rather clustered in the center, so it does not seem to tell us much.
+
+# Lastly, the RDA with just management also does not tell us a lot. the First axis explains about 15% of variance, and most of the species are still clustered around the center.
+
+# Overall these analyses don't seem to tell us a lot, so I find the indirect ordination analysis to be more useful.
+```
+
