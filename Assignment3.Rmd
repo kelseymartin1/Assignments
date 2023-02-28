@@ -1,0 +1,188 @@
+---
+title: "test"
+output: html_document
+date: "2023-02-28"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# read in the data 
+trees <- read.csv('treedata_subset.csv')
+
+# Examine this dataset and see how the data is structured, see function str
+str(trees)
+```
+
+#' 1. Carry out an exploratory analysis using the tree dataset. Develop and compare models for species cover for a habitat generalist, Acer rubrum (Red maple), and a habitat specialist, Abies fraseri (Frasier fir). 
+
+```{r}
+library(car)
+
+# we wish to model species cover across all sampled plots
+# create site x sp matrix for two species 
+sp_cov = with(trees, tapply(cover, list(plotID, spcode), 
+                           function(x) round(mean(x)))) # 
+sp_cov = ifelse(is.na(sp_cov), 0, sp_cov)
+sp_cov = data.frame(plotID = row.names(sp_cov), sp_cov)
+# create environmental matrix
+cols_to_select = c('elev', 'tci', 'streamdist', 'disturb', 'beers')
+env = aggregate(trees[ , cols_to_select], by = list(trees$plotID), 
+                function(x) x[1])
+names(env)[1] = 'plotID'
+# merge species and environmental matrices
+site_dat = merge(sp_cov, env, by='plotID')
+# subset species of interest
+abies = site_dat[ , c('ABIEFRA', cols_to_select)]
+acer  = site_dat[ , c('ACERRUB', cols_to_select)]
+names(abies)[1] = 'cover'
+names(acer)[1] = 'cover'
+```
+
+```{r}
+# Exploring the abies data
+
+panel.cor <- function(x, y, digits = 2, prefix = "", cex.cor, ...)
+{
+    par(usr = c(0, 1, 0, 1))
+    r <- abs(cor(x, y))
+    txt <- format(c(r, 0.123456789), digits = digits)[1]
+    txt <- paste0(prefix, txt)
+    if(missing(cex.cor)) cex.cor <- 0.8/strwidth(txt)
+    text(0.5, 0.5, txt, cex = cex.cor * r)
+}
+
+pairs(~ cover + elev + tci + streamdist + beers, 
+        data = abies, upper.panel = panel.smooth, lower.panel = panel.cor) # This function plots all numerical data and calculates the correlation coefficents. It looks like cover and elevation have a strong correlation (0.45). Cover and stream distance have somewhat of a correlation (0.22). I will model cover vs. elevation and stream distance.
+
+# Plotting cover and elevation to get a better look.
+plot(cover ~ elev, data = abies, xlab = 'Elevation', ylab = 'Cover') # I may want to model without the elevation 0-1500m data, since the effect does not begin until about 1500 meters.
+
+# Plotting stream distance and cover to get a better look.
+plot(cover ~ streamdist, data = abies, xlab = 'Stream Distance', ylab = 'Cover') # There may be an effect, may not be. Cover seems to increased around the 300-500m mark from stream distance. 
+
+# Plotting cover and disturbance to see if there appears to be an effect.
+boxplot(cover ~ disturb, data = abies) # Disturbance doesn't seem to have an effect on cover, but lots of outliers in virgin disturbance.
+```
+
+```{r}
+# Modeling the abies data
+
+# Main Effect Model - linear regression modeling cover vs. elevtion and cover vs. stream distance
+abies_main <- lm(cover ~ elev + streamdist, data = abies)
+Anova(abies_main) # Viewing the Anova table. 
+# According to the p-values, elevation has a significant effect on cover (p = < 2e-16) and stream distance has a smaller, but still significant effect, on cover (p = 0.03906).
+plot(abies_main) # Testing the Assumptions
+# It's difficult to say if this meets the heteroscadasticity assumption since there are so many values that are zeros, but once the data actually beings, it appears that the residuals do look fairly heteroscadastic. The same goes with normality. If the data up to 1500 m was not included, the data points appear to fall along a line, indicating normality. 
+
+# Interaction Effect - linear regression modeling cover vs. elevtion, cover vs. stream distance, AND cover vs. elevation + stream distance.
+abies_int <- lm(cover ~ elev * streamdist, data = abies)
+Anova(abies_int) # Viewing the Anova table
+# This model indicates that again elevation has a significant effect on cover (p < 2e-16), distance has a smaller but still significant effect on cover (p = 0.0251), and stream distance and elevation combined have a significant effect on cover (p < 2e-16).
+plot(abies_int) # Testing the assumptions.
+# As with the Main Effect model, if the zero data was not included, the residuals do look heteroscadastic and fairly normal.
+
+# Comparing Models
+summary(abies_main) # Adjusted R^2 for main effect model = 0.2044
+summary(abies_int) # Adjusted R^2 for interaction effect model = 0.325.The adjusted R^2 for the interaction effect model is higher than the main effect model. To further compare, I will run a log-ratio test. 
+
+# Log-ratio test
+anova(abies_main, abies_int)
+# The anova table indicates that the interaction effect model explains significantly more variance than the main effect model. This indicates that the interaction between stream distance and elevation may have an effect on cover.
+```
+
+```{r}
+# Exploring the acer data
+
+pairs(~ cover + elev + tci + streamdist + beers, 
+        data = acer, upper.panel = panel.smooth, lower.panel = panel.cor) # Again, a somewhat strong correlation between cover and elevation (0.39). Stream distance does not seem to have a strong correlation with cover. Cover vs. tci appears to have a somewhat upward trend, however I think that is due to the two outliers on the far right.Cover and stream distance have a small correlation coefficient but the trendline increases then decreases at a point, which may be interesting to model.
+
+# Plotting cover and elevation to get a better look.
+plot(cover ~ elev, data = acer, xlab = 'Elevation', ylab = 'Cover') 
+# It really does not look like there is much of an effect of elevation on cover. However, after 1500 m, there are no instances of acers.  
+
+#Plotting cover and stream distance to get a better look.
+plot(cover ~ streamdist, data = acer, xlab = 'Stream Distance', ylab = 'Cover') # Once it gets to be about 600m from streams, there are few instances of acers, so they may indicate some sore of correlation.
+
+# Plotting cover and disturbance.
+boxplot(cover ~ disturb, data = acer) # There appears to be no effect of disturbance on cover.
+```
+
+```{r}
+# Modeling the acer data
+
+# Main Effect Model - linear regression modeling cover vs. elevtion and cover vs. stream distance
+acer_main <- lm(cover ~ elev + streamdist, data = acer)
+Anova(acer_main) # Viewing the Anova table. 
+# According to the p-values, elevation has a significant effect on cover (p = < 2e-16) and stream distance does not have a significant effect on cover (p = 0.06511).
+plot(acer_main) # Testing the Assumptions
+# The residuals look pretty heteroscadastic to me. There does not appear to be a trumpet-like shape to them; they seem to be pretty spread about. The residuals also appear to be quite normal. 
+
+# Interaction Effect - linear regression modeling cover vs. elevation, cover vs. stream distance, AND cover vs. elevation + stream distance.
+acer_int <- lm(cover ~ elev * streamdist, data = acer)
+Anova(acer_int) # Viewing the Anova table
+# This model indicates that again elevation has a significant effect on cover (p < 2e-16), distance does not have a significant effect on cover (p = 0.06415), and stream distance and elevation combined do have a significant effect on cover (p < 0.01251).
+plot(acer_int) # Testing the assumptions.
+# Again, to me it appears to be decently heteroscadastic, but it definitely could be better. The normality is pretty good.
+
+# Comparing Models
+summary(acer_main) # Adjusted R^2 for main effect model = 0.1519
+summary(acer_int) # Adjusted R^2 for interaction effect model = 0.158.
+#The adjusted R^2 for the interaction effect model is slightly higher than the main effect model. To further compare, I will run a log-ratio test. 
+
+# Log-ratio test
+anova(acer_main, acer_int)
+# The anova table indicates that the interaction effect model explains significantly more variance than the main effect model. This indicates that the interaction between stream distance and elevation may have an effect on cover.
+
+```
+
+# 1.4. Are you able to explain variance in one species better than another, why might this be the case?
+```{r}
+# Overall, it looks like we were able to better explain variance in the abies species than the acer species. This may be due to there being more significant effects oof elevation and stream distance on cover for abies than for acer. 
+```
+
+# 2.Re-examine your solutions to the question above but from the perspective of a General Linear Model (GLM) with a Poisson error term (rather than a Gaussian one as in OLS). 
+```{r}
+# Abies GLM with Poisson
+
+abies_poi = glm(cover ~  elev + streamdist , data = abies, 
+           family='poisson')
+summary(abies_poi)
+# It appears that changing the error distribution does not change the results much, only slightly. In the interaction model, the significance between cover and stream distance was p = 0.0251, whereas in the GLM, p = 0.012. These p-values are not very different from each other, and they both indicate that there is some significant correlation between cover and stream distance.
+
+# McFadden's R^2 for poisson model
+with(summary(abies_poi), 1 - deviance/null.deviance)
+# R^2 = 0.87, indicating that this is a pretty good model for the data.
+
+```
+
+```{r}
+# Acer GLM with Poisson
+
+acer_poi = glm(cover ~  elev + streamdist , data = acer, 
+           family='poisson')
+summary(acer_poi)
+# It appears that changing the error distribution does change the results somewhat. In the interaction model, the significance between cover and stream distance was p = 0.06415, whereas in the GLM, p = 0.041. These p-values are not too different from each other, but the Interaction model indicates there is no significant effect, whereas the GLM indicates that there is a significant effect on cover and stream distance. 
+
+# McFadden's R^2 for poisson model
+with(summary(acer_poi), 1 - deviance/null.deviance)
+# R^2 = 0.115, indicating that this is not much of a better model for the data compared with the other models.
+
+```
+
+# 3.  Provide a plain English summary (i.e., no statistics) of what you have found and what conclusions we can take away from your analysis?
+```{r}
+# Summaries are explained within the code above.
+```
+
+# 4. Examine the behavior of the function stepAIC() using the exploratory models developed above.
+```{r}
+library(MASS)
+
+stepAIC(abies_int) 
+# Negative AICs. According to this, the <none> category is would be the best model since it is the lowest AIC (-204). <None> corresponds to a model that would include all of the variable rather than just a few select variables. So, a model that includes all variables might be the best model.
+
+stepAIC(acer_int) # Again, <none>, a model that would include all of the variables, has the lowest AIC (1362), so that model might be the best one.
+```
